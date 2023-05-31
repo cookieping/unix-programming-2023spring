@@ -1,0 +1,1 @@
+cmd_/home/angelahsi/lab5/kshrammod/kshram.ko := x86_64-linux-gnu-ld -r -m elf_x86_64 -z noexecstack --build-id=sha1  -T scripts/module.lds -o /home/angelahsi/lab5/kshrammod/kshram.ko /home/angelahsi/lab5/kshrammod/kshram.o /home/angelahsi/lab5/kshrammod/kshram.mod.o;  true

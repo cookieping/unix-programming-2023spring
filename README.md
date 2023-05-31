@@ -39,3 +39,22 @@ The homework aims to practice library injection, API hijacking, and GOT rewritin
 - Implement the blacklist, which will be given with the configuration file, containing blocked content for each API function.
 - You can use `readelf -r` to find the GOT offset of the binary. And you can get extra point if you use `elf.h` to parse the elf information.
 
+## Lab5
+This lab aims to implement a simplified share memory mechanism as a **kernel module** that offers persistent share memories in the kernel for data exchange between user-space processes.
+- The module should automatically create 8 devices in `/dev` filesystem. Each device corresponds to a kernel memory space of 4KB allocated in the kernel using the `kzalloc` function.
+- The size of each shared memory file can be listed from `/proc/kshram`
+- The module has to support the following `ioctl` commands, defined in` kshram.h`.
+    - `KSHRAM_GETSLOTS`
+    - `KSHRAM_GETSIZE`
+    - `KSHRAM_SETSIZE`
+- The module should support `mmap`. You can map to memory allocated in the kernel to user-space addresses so that the user-space program can access it directly.
+
+Hints:
+- Install qemu system emulator:
+    ```apt install qemu-system-x86```
+- Use `sh ./qemu.sh` to boot the Linux kernel in a virtual machine
+- (For Apple chip) Install the compiler for x86_64 platform:
+
+    ```apt install gcc-multilib-x86-64-linux-gnu qemu-user-static```
+- (For Apple chip) Build a module inside the module source directory using:
+    ```make ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu-```
