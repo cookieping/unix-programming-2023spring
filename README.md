@@ -1,4 +1,4 @@
-# unix-programming-2023spring
+# unix-programming - 2023 spring
 ## Lab1
 Solve big number mathematics and use base64 to encode the result in a shortest little endian represented number which is 8-bit aligned.
 > Prepare environment for `docker` and `pwntools`
@@ -20,4 +20,22 @@ Use `gdb`/`gef` to run and debug the challenge and read the assembly code. The g
 You can use `objdump` to dump the code to debug at assembly level.
 
 ```x86_64-linux-gnu-objdump -D solver -M intel > solver.s```
+
+## Homework 1: Secured API call
+The homework aims to practice library injection, API hijacking, and GOT rewriting. You have to implement a sandbox.so by following the specification given below.
+- We use a launcher program to execute a command and load your sandbox.so using LD_PRELOAD. The launcher executes the command and passes the required environment variables to an invoked process. The usage of the launcher program is as follows:
+
+    ```Usage: ./launcher sandbox.so config.txt command arg1 arg2 ...```
+- implement the sandbox.so that supports the following features:
+    - Implement a ` __libc_start_main` to hijack the process’s entry point.
+    - In the __libc_start_main, perform the necessary initializations and then call the real __libc_start_main.
+    - To hijack an API function, you must perform GOT hijacking in the __libc_start_main of sandbox.so. 
+- The functions you have to hijack:
+    - open
+    - read
+    - connect
+    - getaddrinfo
+    - system
+- Implement the blacklist, which will be given with the configuration file, containing blocked content for each API function.
+- You can use `readelf -r` to find the GOT offset of the binary. And you can get extra point if you use `elf.h` to parse the elf information.
 
