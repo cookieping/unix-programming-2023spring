@@ -63,7 +63,9 @@ Hints:
 This lab aims to practice writing assembly codes. Your mission is to implement a sort algorithm in assembly language that sorts a given array containing 𝑛 long integers in an ascending order.
 - The uploaded machine code will be invoked from offset zero. It is called from the server with two arguments, the pointer to the array and the number of long integers in the array. The prototype of the function is
 
-    ```typedef void (*sort_funcptr_t)(long *numbers, int n);```
+    ```
+    typedef void (*sort_funcptr_t)(long *numbers, int n);
+    ```
 - upload process:
 ```./submit.py filename.s [scoreboard-token]```
 
@@ -73,6 +75,7 @@ This lab aims to practice writing more assembly codes. Your mission is to read F
     - Reading it from the `/FLAG` file.
     - Attaching to a shared memory of key `0x1337` and reading the first few bytes from memory. The shared memory is filled with zeros for unused spaces.
     - Connecting to a server running at `localhost:0x1337` and receiving the data from the server.
+
 Hints:
 - call libc from python:
     ```
