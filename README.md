@@ -66,3 +66,17 @@ This lab aims to practice writing assembly codes. Your mission is to implement a
     ```typedef void (*sort_funcptr_t)(long *numbers, int n);```
 - upload process:
 ```./submit.py filename.s [scoreboard-token]```
+
+## Lab7
+This lab aims to practice writing more assembly codes. Your mission is to read FLAGs from various sources on the challenge server using the assembly language. However, before you can implement regular assembly codes, you have to bypass the constraints given by the server using return-oriented programming (ROP).
+- You have to access the FLAGs using different approaches on the challenge server. The three FLAGs can be obtained by:
+    - Reading it from the `/FLAG` file.
+    - Attaching to a shared memory of key `0x1337` and reading the first few bytes from memory. The shared memory is filled with zeros for unused spaces.
+    - Connecting to a server running at `localhost:0x1337` and receiving the data from the server.
+Hints:
+- call libc from python:
+    ```
+    import ctypes
+    libc = ctypes.CDLL('libc.so.6')
+    ```
+- ROP (return-oriented programming): Since the stack is writable but not executable, you can write return addresses and parameter values to the stack to manipulate the program workflow to achieve your goal.
