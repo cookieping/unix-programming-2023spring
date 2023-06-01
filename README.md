@@ -58,3 +58,11 @@ Hints:
     ```apt install gcc-multilib-x86-64-linux-gnu qemu-user-static```
 - (For Apple chip) Build a module inside the module source directory using:
     ```make ARCH=x86_64 CROSS_COMPILE=x86_64-linux-gnu-```
+
+## Lab6
+This lab aims to practice writing assembly codes. Your mission is to implement a sort algorithm in assembly language that sorts a given array containing 𝑛 long integers in an ascending order.
+- The uploaded machine code will be invoked from offset zero. It is called from the server with two arguments, the pointer to the array and the number of long integers in the array. The prototype of the function is
+
+    ```typedef void (*sort_funcptr_t)(long *numbers, int n);```
+- upload process:
+```./submit.py filename.s [scoreboard-token]```
