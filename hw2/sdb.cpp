@@ -171,6 +171,20 @@ void disassemble(pid_t child, struct user_regs_struct& regs, proc_info_t& proc_i
 	cs_close(&handle);
 }
 
+void check_breakpoint(pid_t child, vector<bp_t>& breakpoints) {
+	struct user_regs_struct regs;
+	if(ptrace(PTRACE_GETREGS, child, 0, &regs) != 0) errquit("ptrace_getregs");
+
+	for(int i = 0; i < (int)breakpoints.size(); i++) {
+		if((!breakpoints[i].is_active) && breakpoints[i].addr < regs.rip) { // restore breakpoints after running them
+			unsigned long ret;
+			ret = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
+			if(ptrace(PTRACE_POKETEXT, child, breakpoints[i].addr, ((ret & (~0xff)) | 0xcc)) != 0) errquit("ptrace_poketext");
+			breakpoints[i].is_active = true;
+		}
+	}
+}
+
 void check_status(pid_t child, int& wait_status, vector<bp_t>& breakpoints, string cmd) {
 	if(waitpid(child, &wait_status, 0) < 0) errquit("waitpid");
 	if(WIFEXITED(wait_status)) {
@@ -184,9 +198,7 @@ void check_status(pid_t child, int& wait_status, vector<bp_t>& breakpoints, stri
 	// to avoid print the same instruction when si to a breakpoint
 	if(cmd == "si") {
 		bool has_breakpoint = false;
-		// cout << "* rip addr: " << hex <<  regs.rip << endl;
 		for(int i = 0; i < (int)breakpoints.size(); i++) {
-			// cout << "* breakpoint addr: " << hex <<  breakpoints[i].addr << endl;
 			if(regs.rip == breakpoints[i].addr) {
 				if((ptrace(PTRACE_SINGLESTEP, child, 0, 0)) < 0) errquit("ptrace_singlestep");
 				has_breakpoint = true;
@@ -265,7 +277,7 @@ void cmd_anchor(pid_t child, struct user_regs_struct& regs_snapshot, vector<snap
 			bool correct_name = ((found_name != string::npos) || (found_stack != string::npos) || (found_heap != string::npos));
 
 			if ((found_w != string::npos) && correct_name) {  // only snapshot writable part and [stack] and [heap]
-				cout << "* get: " << addr_range << " " << name << endl;
+				// cout << "* get: " << addr_range << " " << name << endl;
 				// 1. get the address range
 				snapshot_t curr_snapshot;
 				string delimeter = "-";
@@ -381,11 +393,13 @@ int main(int argc, char *argv[]) {
 
 			// check which command it is
 			if(curr_cmd[0] == "si") {
+				check_breakpoint(child, breakpoints);
 				cmd_si(child);
 				check_status(child, wait_status, breakpoints, curr_cmd[0]);
 				disassemble(child, regs, proc_info, code_size);
 
 			} else if(curr_cmd[0] == "cont") {
+				check_breakpoint(child, breakpoints);
 				cmd_cont(child);
 				check_status(child, wait_status, breakpoints, curr_cmd[0]);
 				disassemble(child, regs, proc_info, code_size);
