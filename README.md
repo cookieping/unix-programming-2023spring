@@ -83,3 +83,32 @@ Hints:
     libc = ctypes.CDLL('libc.so.6')
     ```
 - ROP (return-oriented programming): Since the stack is writable but not executable, you can write return addresses and parameter values to the stack to manipulate the program workflow to achieve your goal.
+
+## Lab8
+This lab aims to practice implementing program tracing using the introduced `ptrace` interface. Your mission is to obtain the FLAG from a dynamically generated executable.
+- Suppose your uploaded solver is called `runner`, and the challenge executable generated on the server is called `chals`. The server then uses the following command to invoke your solver.
+    ```
+    ./runner ./chals
+    ```
+- By change the flow of the program with the magic number, you can get the "Bingo!" message if you are correct.
+- You can modify the magic number with `ptrace`.
+
+## Homework 2:
+In this homework, you have to implement a simple instruction-level debugger that allows a user to debug a program interactively at the assembly instruction level. You can implement the debugger by using the `ptrace` interface.
+
+To simplify your program, your debugger only has to handle `static-nopie` programs.
+- The debugger will launch the target program when the debugger starts. The program should stop at the entry point, waiting for the user’s `cont` or `si` commands.
+- The debugger should disassemble 5 instruction starting from the current program counter.
+    - `capstone`
+- The bebugger can use the following commands:
+    - `si`: the target program should execute a single instruction
+    - `cont`: continue the target program until it terminates or hits a breakpoint.
+    - `break <address in hexdecimal>`: set a breakpoint
+    - `anchor`: set a checkpoint
+    - `timetravel`: restore the process status to the checkpoint
+
+Note:
+- Run the program in the workstation: 
+```
+LD_LIBRARY_PATH=$HOME/capstone/lib64 ./sdb ./hello64
+```
