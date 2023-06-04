@@ -176,7 +176,8 @@ void check_breakpoint(pid_t child, vector<bp_t>& breakpoints) {
 	if(ptrace(PTRACE_GETREGS, child, 0, &regs) != 0) errquit("ptrace_getregs");
 
 	for(int i = 0; i < (int)breakpoints.size(); i++) {
-		if((!breakpoints[i].is_active) && breakpoints[i].addr < regs.rip) { // restore breakpoints after running them
+		// restore breakpoints after running them
+		if((!breakpoints[i].is_active) && breakpoints[i].addr != regs.rip) {
 			unsigned long ret;
 			ret = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
 			if(ptrace(PTRACE_POKETEXT, child, breakpoints[i].addr, ((ret & (~0xff)) | 0xcc)) != 0) errquit("ptrace_poketext");
@@ -222,9 +223,6 @@ void check_status(pid_t child, int& wait_status, vector<bp_t>& breakpoints, stri
 				unsigned long curr_code = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
 				unsigned long new_code = (breakpoints[i].old_code & 0x00000000000000ff) | (curr_code & ~(0xff));
 
-				// cout << "curr_code: " << hex << curr_code << dec << endl;
-				// cout << "breakpoints[i].old_code: " << hex << breakpoints[i].old_code << dec << endl;
-				// cout << "new_code: " << hex << new_code << dec << endl << endl;
 				if(ptrace(PTRACE_POKETEXT, child, breakpoints[i].addr, new_code) != 0) errquit("ptrace_poketext");
 				breakpoints[i].is_active = false;
 				
@@ -329,10 +327,19 @@ void cmd_timetravel(pid_t child, struct user_regs_struct& regs_snapshot, vector<
 void recover_breakpoint(pid_t child, vector<bp_t>& breakpoints, unsigned long& anchor_addr, bool& has_anchor) {
 	for(int i = 0; i < (int)breakpoints.size(); i++) {
 		if(breakpoints[i].is_active) continue;
-		if(has_anchor && anchor_addr == breakpoints[i].addr) continue;  // do not restore the breakpoint on the anchor (see sample.3)
 
 		unsigned long ret;
 		ret = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
+
+		// do not restore the breakpoint on the anchor (see sample.3)
+		if(has_anchor && anchor_addr == breakpoints[i].addr) {
+			unsigned long curr_code = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
+			unsigned long new_code = (breakpoints[i].old_code & 0x00000000000000ff) | (curr_code & ~(0xff));
+			if(ptrace(PTRACE_POKETEXT, child, breakpoints[i].addr, new_code) != 0) errquit("ptrace_poketext");
+			breakpoints[i].is_active = false;
+			continue;
+		}
+		// restore other breakpoints
 		if(ptrace(PTRACE_POKETEXT, child, breakpoints[i].addr, ((ret & (~0xff)) | 0xcc)) != 0) errquit("ptrace_poketext");
 		breakpoints[i].is_active = true;
 	}
