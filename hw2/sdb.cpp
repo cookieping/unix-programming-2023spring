@@ -45,6 +45,7 @@ typedef struct snapshot_s {
 } snapshot_t;
 
 char* code = NULL;  // need to use global variable! Otherwise it will segmentation fault qwq
+bool continue_bp = false;
 
 void errquit(const char *msg) {
 	perror(msg);
@@ -200,9 +201,27 @@ void check_status(pid_t child, int& wait_status, vector<bp_t>& breakpoints, stri
 	if(cmd == "si") {
 		bool has_breakpoint = false;
 		for(int i = 0; i < (int)breakpoints.size(); i++) {
+			if(!breakpoints[i].is_active) continue;
 			if(regs.rip == breakpoints[i].addr) {
 				if((ptrace(PTRACE_SINGLESTEP, child, 0, 0)) < 0) errquit("ptrace_singlestep");
 				has_breakpoint = true;
+				break;
+			}
+		}
+		if(has_breakpoint) {
+			if(waitpid(child, &wait_status, 0) < 0) errquit("waitpid");
+			if(ptrace(PTRACE_GETREGS, child, 0, &regs) != 0) errquit("ptrace_getregs");
+		}
+	}
+
+	if(cmd == "si_from_cont") {
+		bool has_breakpoint = false;
+		for(int i = 0; i < (int)breakpoints.size(); i++) {
+			if(!breakpoints[i].is_active) continue;
+			if(regs.rip + 1 == breakpoints[i].addr) {  // rip + 1
+				if((ptrace(PTRACE_SINGLESTEP, child, 0, 0)) < 0) errquit("ptrace_singlestep");
+				has_breakpoint = true;
+				continue_bp = true;
 				break;
 			}
 		}
@@ -216,9 +235,11 @@ void check_status(pid_t child, int& wait_status, vector<bp_t>& breakpoints, stri
 		// fprintf(stderr, "* in WIFSTOPPED\n");
 		// check breakpoint address
 		for(int i = 0; i < (int)breakpoints.size(); i++) {
+			if(!breakpoints[i].is_active) continue;
 			if(regs.rip - 1 == breakpoints[i].addr) {
 			// if(regs.rip == breakpoints[i].addr) {
 				fprintf(stderr, "** hit a breakpoint 0x%lx\n", breakpoints[i].addr);
+				if(cmd == "si_from_cont") continue_bp = true;
 				// restore breakpoint (** avoid changing other breakpoints!)
 				unsigned long curr_code = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
 				unsigned long new_code = (breakpoints[i].old_code & 0x00000000000000ff) | (curr_code & ~(0xff));
@@ -308,7 +329,7 @@ void cmd_anchor(pid_t child, struct user_regs_struct& regs_snapshot, vector<snap
 	// cout << "* end of anchor\n";
 }
 
-void cmd_timetravel(pid_t child, struct user_regs_struct& regs_snapshot, vector<snapshot_t>& memory_snapshot) {
+void cmd_timetravel(pid_t child, struct user_regs_struct& regs_snapshot, vector<snapshot_t>& memory_snapshot, vector<bp_t>& breakpoints) {
 	fprintf(stderr, "** go back to the anchor point\n");
 	// recover registers
 	if(ptrace(PTRACE_SETREGS, child, 0, &regs_snapshot) != 0) errquit("ptrace_setregs");
@@ -321,6 +342,21 @@ void cmd_timetravel(pid_t child, struct user_regs_struct& regs_snapshot, vector<
 		}
 		// cout << "\n*** memory snapshot ***\naddr start: " << hex << memory_snapshot[i].start_addr << endl;
 		// cout << "content:\n" << memory_snapshot[i].content << "\n***\n";
+	}
+
+	struct user_regs_struct regs;
+	if(ptrace(PTRACE_GETREGS, child, 0, &regs) != 0) errquit("ptrace_getregs");
+
+	for(int i = 0; i < (int)breakpoints.size(); i++) {
+		if(!breakpoints[i].is_active) continue;
+		if(regs.rip == breakpoints[i].addr) {
+			unsigned long curr_code = ptrace(PTRACE_PEEKTEXT, child, breakpoints[i].addr, 0);
+			unsigned long new_code = (breakpoints[i].old_code & 0x00000000000000ff) | (curr_code & ~(0xff));
+
+			if(ptrace(PTRACE_POKETEXT, child, breakpoints[i].addr, new_code) != 0) errquit("ptrace_poketext");
+			breakpoints[i].is_active = false;
+			break;
+		}
 	}
 }
 
@@ -407,8 +443,16 @@ int main(int argc, char *argv[]) {
 
 			} else if(curr_cmd[0] == "cont") {
 				check_breakpoint(child, breakpoints);
-				cmd_cont(child);
-				check_status(child, wait_status, breakpoints, curr_cmd[0]);
+
+				continue_bp = false;
+				cmd_si(child);
+				check_status(child, wait_status, breakpoints, "si_from_cont");
+
+				// check_breakpoint(child, breakpoints);
+				if(!continue_bp) {
+					cmd_cont(child);
+					check_status(child, wait_status, breakpoints, curr_cmd[0]);
+				}
 				disassemble(child, regs, proc_info, code_size);
 
 			} else if(curr_cmd[0] == "break") {
@@ -419,7 +463,7 @@ int main(int argc, char *argv[]) {
 				cmd_anchor(child, regs_snapshot, memory_snapshot, anchor_addr, has_anchor, argv[1]);
 
 			} else if(curr_cmd[0] == "timetravel") {
-				cmd_timetravel(child, regs_snapshot, memory_snapshot);
+				cmd_timetravel(child, regs_snapshot, memory_snapshot, breakpoints);
 				recover_breakpoint(child, breakpoints, anchor_addr, has_anchor);
 				disassemble(child, regs, proc_info, code_size);
 			}
